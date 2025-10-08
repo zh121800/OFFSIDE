@@ -1,6 +1,6 @@
 # OFFSIDE 
 ![示例图片](./pipeline.png)
-This repo contains datasets and codes for our paper "OFFSIDE: Benchmarking Unlearning Misinformation in Multimodal Large Language Models" (under review)
+This repo contains datasets and codes for our paper "OFFSIDE: Benchmarking Unlearning Misinformation in Multimodal Large Language Models" (under review).
 
 ## Contents
 
