@@ -1,4 +1,4 @@
-# The whole pipeline of OFFSIDE 
+# Pipeline of OFFSIDE 
 ![示例图片](./pipeline.png)
 
 
