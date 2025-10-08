@@ -20,9 +20,7 @@ pip install -r requirements.txt
 
 ### Config
 
-Set paths to datasets, pre-trained models and desired log directories in ```config.py```
 
-Set ```SAVE_DIR``` (logfile destination) and ```PYTHON``` (path to python interpreter) in ```bash_scripts``` scripts.
 
 ### Datasets
 
