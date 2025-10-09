@@ -20,8 +20,7 @@ pip install -r requirements.txt
 
 ### Dataset Construction 
 Taking Kevin De Bruyne as an example, there are a total of 8 images of him. Three images are assigned to the retain set (samples with IDs modulo 5 equal to 1, 2, or 3), three images are for the test set (augmented versions of the retain set), one image is for the forget set (sample with ID modulo 5 equal to 4), and one image is for the relearn set (sample with ID modulo 5 equal to 0). For each image, there are 14 VQA pairs, consisting of 8 shared information pairs and 6 private information pairs.
-Here are the example of shared information and private information:
-
+To save space, we have provided a shortened version of the answer as an example:
 **Shared Information:**
 
 1. **What is the name of the player in the image?**
