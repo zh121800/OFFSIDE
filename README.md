@@ -1,6 +1,8 @@
 # Pipeline of OFFSIDE 
 ![示例图片](./pipeline.png)
 
+Inspired by rumors in the football transfer market, OFFSIDE is a dataset specifically designed for multimodal unlearning, aiming to simulate the erasure of erroneous information learned during the pre-training and fine-tuning processes of large multimodal models. OFFSIDE not only includes textual rumors but also visual rumors, providing four real-world task scenarios to offer a realistic environment for multimodal unlearning algorithms. Statistically, OFFSIDE contains 15.68K Vision-Question-Answer pairs, with 7.84K dedicated to multimodal unlearning and 7.84K for unimodal unlearning.
+
 
 ## Contents
 
@@ -18,9 +20,10 @@ pip install ms-swift
 pip install -r requirements.txt
 ```
 
-### Dataset Construction 
-Taking Kevin De Bruyne as an example, there are a total of 8 images of him. Three images are assigned to the retain set (samples with IDs modulo 5 equal to 1, 2, or 3), three images are for the test set (augmented versions of the retain set), one image is for the forget set (sample with ID modulo 5 equal to 4), and one image is for the relearn set (sample with ID modulo 5 equal to 0). For each image, there are 14 VQA pairs, consisting of 8 shared information pairs and 6 private information pairs.
-To save space, we have provided a shortened version of the answer as an example:
+### Dataset Construction
+
+Taking Kevin De Bruyne as an example, we have a total of 8 images of him. Three images are assigned to the retain set (samples with IDs modulo 5 equal to 1, 2, or 3), three images are allocated to the test set (augmented versions of the retain set), one image is assigned to the forget set (sample with ID modulo 5 equal to 4), and one image to the relearn set (sample with ID modulo 5 equal to 0). Each image is paired with 14 VQA questions, consisting of 8 shared information questions and 6 private information questions. Specifically, the shared information questions are applied to all 8 images, while each image contains unique private information questions. 
+To save space, we provide a shortened version of the answer as an example:
 
 **Shared Information:**
 
