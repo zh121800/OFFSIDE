@@ -8,7 +8,9 @@ Inspired by rumors in the football transfer market, OFFSIDE is a dataset specifi
 
 [:running: 1. Running](#running)
 
-[:1234: 2. Script](#studying)
+[🍎: 2. Dataset Construction](#data)
+
+[📚: 3. Script](#studying)
 
 
 ## <a name="running"/> :running: Running
@@ -19,8 +21,7 @@ Inspired by rumors in the football transfer market, OFFSIDE is a dataset specifi
 pip install ms-swift 
 pip install -r requirements.txt
 ```
-
-### Dataset Construction
+## <a name="data"/> 🍎: Dataset Construction
 We have provided all of the images and corresponding text description in data.zip.
 
 Taking Kevin De Bruyne as an example, we have a total of 8 images of him. Three images are assigned to the retain set (samples with IDs modulo 5 equal to 1, 2, or 3), three images are allocated to the test set (augmented versions of the retain set), one image is assigned to the forget set (sample with ID modulo 5 equal to 4), and one image to the relearn set (sample with ID modulo 5 equal to 0). Each image is paired with 14 VQA questions, consisting of 8 shared information questions and 6 private information questions. Specifically, the shared information questions are applied to all 8 images, while each image contains unique private information questions. 
