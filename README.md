@@ -8,7 +8,7 @@ Inspired by rumors in the football transfer market, OFFSIDE is a dataset specifi
 
 [:running: 1. Running](#running)
 
-[:1234: 2. Results](#results)
+[:1234: 2. Script](#studying)
 
 
 ## <a name="running"/> :running: Running
@@ -75,7 +75,9 @@ To save space, we provide a shortened version of the answer as an example:
    2.
 
 
-## Scripts
+
+
+## <a name="studying"/> :books: Scripts 
 please refer to the bash files provided in our code.
 
 
