@@ -16,10 +16,18 @@ Inspired by rumors in the football transfer market, OFFSIDE is a dataset specifi
 ## <a name="running"/> :running: Running
 
 ### Dependencies
-
+1. Environment setup
 ```
+conda create -n offside python=3.10 -y
+conda activate offside
+pip install --upgrade pip
 pip install ms-swift 
 pip install -r requirements.txt
+```
+2. Unzip the data
+```
+cd OFFSIDE
+unzip -o data.zip
 ```
 ## <a name="data"/> 🍎: Dataset Construction
 We have provided all of the images and corresponding text description in data.zip.
@@ -79,6 +87,34 @@ To save space, we provide a shortened version of the answer as an example:
 
 
 ## <a name="studying"/> :books: Scripts 
+1. vanilla model
+   To acquire the vanilla model, you can run this script:
+```
+python MLLM_finetune.py
+```
+   You can change the settings directly in this file.
+   After fine-tuning the model, you need to run this script to merge the lora weight:
+```
+swift export \
+   --model /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-vanilla-2100 \
+   --adapters /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-GD/checkpoint-140\
+   --merge_lora true \
+   --output_dir /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-GD-2100\
+   --model_type qwen2_5_vl
+```
+This step is also needed after unlearning.   
+
+3. unlearning baselines
+We have provided the scripts [here](https://github.com/zh121800/OFFSIDE/blob/main/OFFSIDE/bash.sh).
+
+For different unlearning scenarios, you can change the input data, 
+Note: For methods that require both retained and forgotten data, please maintain a batch size ratio of 3:1 (3 for retained data and 1 for forgotten data).
+ 
+5. evaluation
+
+For evaluation on MM-Bench, you can refer to the repo [here](https://github.com/open-compass/MMBench).
+
+
 please refer to the bash files provided in our code.
 
 
