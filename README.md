@@ -23,14 +23,19 @@ conda activate offside
 pip install --upgrade pip
 pip install ms-swift 
 pip install -r requirements.txt
+pip install -U flash-attn --no-build-isolation
 ```
-2. Unzip the data
 ```
 cd OFFSIDE
 unzip -o data.zip
 ```
+## Installation Note: flash-attn
+
+If you encounter issues while installing `flash-attn`, you can visit the project's releases page (https://github.com/Dao-AILab/flash-attention/releases/) to download the appropriate package based on your CUDA and Python versions, then extract and install it manually.
+
+
 ## <a name="data"/> 🍎: Dataset Construction
-We have provided all of the images and corresponding text description in data.zip.
+**Dataset Access:** We have provided all of the images and corresponding text descriptions on [Hugging Face](https://huggingface.co/datasets/zh1218001/OFFSIDE).
 
 Taking Kevin De Bruyne as an example, we have a total of 8 images of him. Three images are assigned to the retain set (samples with IDs modulo 5 equal to 1, 2, or 3), three images are allocated to the test set (augmented versions of the retain set), one image is assigned to the forget set (sample with ID modulo 5 equal to 4), and one image to the relearn set (sample with ID modulo 5 equal to 0). Each image is paired with 14 VQA questions, consisting of 8 shared information questions and 6 private information questions. Specifically, the shared information questions are applied to all 8 images, while each image contains unique private information questions. 
 To save space, we provide a shortened version of the answer as an example:
@@ -87,35 +92,38 @@ To save space, we provide a shortened version of the answer as an example:
 
 
 ## <a name="studying"/> :books: Scripts 
-1. vanilla model
-   To acquire the vanilla model, you can run this script:
-```
+
+### 1. Vanilla Model Training
+To acquire the vanilla model, run the following script:
+```bash
 python MLLM_finetune.py
 ```
-   You can change the settings directly in this file.
-   After fine-tuning the model, you need to run this script to merge the lora weight:
-```
+You can modify the training settings directly in this file according to your requirements.
+
+After fine-tuning the model, you need to merge the LoRA weights using this command:
+```bash
 swift export \
    --model /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-vanilla-2100 \
-   --adapters /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-GD/checkpoint-140\
+   --adapters /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-GD/checkpoint-140 \
    --merge_lora true \
-   --output_dir /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-GD-2100\
+   --output_dir /root/autodl-tmp/OFFSIDE/output/Qwen2.5-VL-LoRA-GD-2100 \
    --model_type qwen2_5_vl
 ```
-This step is also needed after unlearning.   
+**Note:** This merging step is also required after the unlearning process.
+**Pre-trained Models:** We have provided the vanilla [3B model](https://huggingface.co/zh1218001/OFFSIDE_Vanilla_3B) and [7B model](https://huggingface.co/zh1218001/OFFSIDE_Vanilla_7B) for direct use.
+### 2. Unlearning Baselines
+We have provided comprehensive unlearning scripts in our repository. You can find them [here](https://github.com/zh121800/OFFSIDE/blob/main/OFFSIDE/bash.sh).
 
-3. unlearning baselines
-We have provided the scripts [here](https://github.com/zh121800/OFFSIDE/blob/main/OFFSIDE/bash.sh).
+**Configuration Guidelines:**
+- For different unlearning scenarios, you can modify the input data accordingly
+- **Important:** For methods that require both retained and forgotten data, please maintain a batch size ratio of **3:1** (3 for retained data and 1 for forgotten data)
 
-For different unlearning scenarios, you can change the input data, 
-Note: For methods that require both retained and forgotten data, please maintain a batch size ratio of 3:1 (3 for retained data and 1 for forgotten data).
- 
-5. evaluation
-
-For evaluation on MM-Bench, you can refer to the repo [here](https://github.com/open-compass/MMBench).
+### 3. Model Evaluation
+For evaluation on MM-Bench, please refer to the official repository [here](https://github.com/open-compass/MMBench).
 
 
-please refer to the bash files provided in our code.
+
+
 
 
 
