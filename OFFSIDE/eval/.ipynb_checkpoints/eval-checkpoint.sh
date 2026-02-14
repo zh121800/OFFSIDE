@@ -1,39 +1,46 @@
 #!/bin/bash
+
 # ===================== Basic Parameters =====================
-MODEL_PATH=""
-IMAGE_DIR=""
-GEN_OUTPUT_DIR=""
-CLASSI_OUTPUT_DIR=""
-GPT_OUTPUT_DIR=""
+MODEL_PATH="/root/autodl-tmp/models/Qwen2.5-VL-7B-Instruct"
+##Options:
+#Complete unlearning: /OFFSIDE/data/complete_unlearning_data
+#Pure_text unlearning: /OFFSIDE/data/pure_text_data
+#selective unlearning: /OFFSIDE/data/selective_unlearning_data
+IMAGE_DIR="/root/autodl-tmp/OFFSIDE/OFFSIDE/data/complete_unlearning_data"
+GEN_OUTPUT_DIR="./output_gen"
+CLASSI_OUTPUT_DIR="./output_classi"
+GPT_OUTPUT_DIR="./output_classi"
 MAX_NEW_TOKENS=32
 
 # Parallel Parameters
-GEN_BATCH_SIZE=4
-GEN_WORKERS=4
-CLASSI_BATCH_SIZE=16
-CLASSI_WORKERS=16
-GPT_BATCH_SIZE=8
-GPT_INFER_WORKERS=8
-GPT_API_WORKERS=8
+GEN_BATCH_SIZE=2
+GEN_WORKERS=2
+CLASSI_BATCH_SIZE=8
+CLASSI_WORKERS=8
+GPT_BATCH_SIZE=4
+GPT_INFER_WORKERS=4
+GPT_API_WORKERS=4
 
 # ===================== Dataset List =====================
 declare -a GEN_DATASETS=(
-"forget_set.json"
-"retain_set.json"
-"test_set.json"
-"relearn_set_enhanced.json"
+#for example
+  "forget_set.json"
+  "retain_set.json"
+  "test_set.json"
 )
+
 declare -a CLASSI_DATASETS=(
-"classification_retain_set.json"
-"classification_forget_set.json"
-"classification_test_set.json"
-"classification_relearn_set.json"
+#for example
+    "classification_retain_set.json"
+    "classification_forget_set.json"
+    "classification_test_set.json"
 )
+
 declare -a GPT_DATASETS=(
-"retain_set.json"
-"test_set.json"
-"forget_set.json"
-"relearn_set_enhanced.json"
+#for example
+  "forget_set.json"
+  "test_set.json"
+  "retain_set.json"
 )
 
 # ===================== Color Output =====================
@@ -57,7 +64,7 @@ for dataset in "${GEN_DATASETS[@]}"; do
     continue
   fi
   echo -e "${GREEN}Evaluating Generation dataset: $dataset_name${NC}"
-  python /root/autodl-tmp/StarBench/eval_generation.py \
+  python eval_generation.py \
     --model_path "$MODEL_PATH" \
     --data_path "$data_path" \
     --image_dir "$IMAGE_DIR" \
@@ -68,22 +75,27 @@ for dataset in "${GEN_DATASETS[@]}"; do
 done
 
 echo -e "${BLUE}========== 2. Classification Evaluation ==========${NC}"
+
 for dataset in "${CLASSI_DATASETS[@]}"; do
-  DATASET_BASENAME=$(basename "$dataset" .json)
-  OUTPUT_DIR="${CLASSI_OUTPUT_DIR}/${DATASET_BASENAME}"
-  mkdir -p "$OUTPUT_DIR"
-  if [ ! -f "$dataset" ]; then
-    echo -e "${RED}Classification dataset does not exist: $dataset${NC}"
-    continue
-  fi
-  echo -e "${GREEN}Evaluating Classification dataset: $DATASET_BASENAME${NC}"
-  python /root/autodl-tmp/StarBench/eval_classi.py \
-    --data_path="$dataset" \
-    --model_path="$MODEL_PATH" \
-    --output_dir="$OUTPUT_DIR" \
-    --image_dir="$IMAGE_DIR" \
-    --num_workers="$CLASSI_WORKERS" \
-    --batch_size "$CLASSI_BATCH_SIZE"
+    dataset_name=$(basename "$dataset" .json)
+    output_dir="$CLASSI_OUTPUT_DIR/$dataset_name"
+    mkdir -p "$output_dir"
+
+    data_path="$IMAGE_DIR/$dataset"
+    if [ ! -f "$data_path" ]; then
+        echo -e "${RED}Classification dataset does not exist: $data_path${NC}"
+        continue
+    fi
+
+    echo -e "${GREEN}Evaluating Classification dataset: $dataset_name${NC}"
+
+    python eval_classi.py \
+        --model_path "$MODEL_PATH" \
+        --data_path "$data_path" \
+        --image_dir "$IMAGE_DIR" \
+        --output_dir "$output_dir" \
+        --num_workers "$CLASSI_WORKERS" \
+        --batch_size "$CLASSI_BATCH_SIZE"
 done
 
 echo -e "${BLUE}========== 3. GPT Evaluation ==========${NC}"
@@ -97,7 +109,7 @@ for dataset in "${GPT_DATASETS[@]}"; do
     continue
   fi
   echo -e "${GREEN}Evaluating GPT dataset: $dataset_name${NC}"
-  python /root/autodl-tmp/StarBench/eval_gpt.py \
+  python eval_gpt.py \
     --model_path "$MODEL_PATH" \
     --data_path "$data_path" \
     --output_dir "$output_dir" \
@@ -115,7 +127,7 @@ minutes=$(( (duration % 3600) / 60 ))
 seconds=$((duration % 60))
 
 echo -e "${BLUE}========== All Evaluations Completed ==========${NC}"
-echo "Total Time: ${hours} hours ${minutes} minutes ${seconds} seconds"
+echo "Total time: ${hours} hours ${minutes} minutes ${seconds} seconds"
 
 # Generation Evaluation Markdown
 markdown_gen="$GEN_OUTPUT_DIR/evaluation_summary.md"
@@ -171,89 +183,5 @@ echo -e "${GREEN}All evaluation Markdown reports have been generated!${NC}"
 echo "Generation: $markdown_gen"
 echo "Classification: $markdown_classi"
 echo "GPT: $markdown_gpt"
-echo ""
-echo -e "${BLUE}All evaluation processes completed.${NC}"
-
-# ===================== Average Summary =====================
-echo -e "${BLUE}========== 4. Average Statistics for Four Datasets ==========${NC}"
-
-# Generation Average
-gen_sets=("forget_set" "retain_set" "test_set" "relearn_set_enhanced")
-gen_score_sum=0
-gen_bleu_sum=0
-gen_rouge1_sum=0
-gen_rouge2_sum=0
-gen_rougeL_sum=0
-gen_count=0
-for name in "${gen_sets[@]}"; do
-  line=$(grep "| $name" "$GEN_OUTPUT_DIR/evaluation_summary.md")
-  if [ -n "$line" ]; then
-    score=$(echo "$line" | awk -F'|' '{print $4}' | xargs)
-    bleu=$(echo "$line" | awk -F'|' '{print $5}' | xargs)
-    rouge1=$(echo "$line" | awk -F'|' '{print $6}' | xargs)
-    rouge2=$(echo "$line" | awk -F'|' '{print $7}' | xargs)
-    rougeL=$(echo "$line" | awk -F'|' '{print $8}' | xargs)
-    gen_score_sum=$(echo "$gen_score_sum + $score" | bc)
-    gen_bleu_sum=$(echo "$gen_bleu_sum + $bleu" | bc)
-    gen_rouge1_sum=$(echo "$gen_rouge1_sum + $rouge1" | bc)
-    gen_rouge2_sum=$(echo "$gen_rouge2_sum + $rouge2" | bc)
-    gen_rougeL_sum=$(echo "$gen_rougeL_sum + $rougeL" | bc)
-    ((gen_count++))
-  fi
-done
-if [ $gen_count -gt 0 ]; then
-  gen_score_mean=$(echo "scale=4; $gen_score_sum/$gen_count" | bc)
-  gen_bleu_mean=$(echo "scale=4; $gen_bleu_sum/$gen_count" | bc)
-  gen_rouge1_mean=$(echo "scale=4; $gen_rouge1_sum/$gen_count" | bc)
-  gen_rouge2_mean=$(echo "scale=4; $gen_rouge2_sum/$gen_count" | bc)
-  gen_rougeL_mean=$(echo "scale=4; $gen_rougeL_sum/$gen_count" | bc)
-  echo -e "${GREEN}Generation Average for Four Datasets:${NC}"
-  echo "Average Total Score: $gen_score_mean"
-  echo "Average BLEU: $gen_bleu_mean"
-  echo "Average ROUGE-1: $gen_rouge1_mean"
-  echo "Average ROUGE-2: $gen_rouge2_mean"
-  echo "Average ROUGE-L: $gen_rougeL_mean"
-else
-  echo -e "${RED}Generation average for four datasets cannot be calculated (data missing)${NC}"
-fi
-
-# Classification Average
-classi_sets=("classification_retain_set" "classification_forget_set" "classification_test_set" "classification_relearn_set")
-classi_acc_sum=0
-classi_count=0
-for name in "${classi_sets[@]}"; do
-  line=$(grep "| $name" "$CLASSI_OUTPUT_DIR/summary_report.md")
-  if [ -n "$line" ]; then
-    acc=$(echo "$line" | awk -F'|' '{print $4}' | xargs)
-    classi_acc_sum=$(echo "$classi_acc_sum + $acc" | bc)
-    ((classi_count++))
-  fi
-done
-if [ $classi_count -gt 0 ]; then
-  classi_acc_mean=$(echo "scale=4; $classi_acc_sum/$classi_count" | bc)
-  echo -e "${GREEN}Classification Average Accuracy for Four Datasets: $classi_acc_mean${NC}"
-else
-  echo -e "${RED}Classification average for four datasets cannot be calculated (data missing)${NC}"
-fi
-
-# GPT Average
-gpt_sets=("forget_set" "retain_set" "test_set" "relearn_set_enhanced")
-gpt_score_sum=0
-gpt_count=0
-for name in "${gpt_sets[@]}"; do
-  line=$(grep "| $name" "$GPT_OUTPUT_DIR/evaluation_gpt_summary.md")
-  if [ -n "$line" ]; then
-    score=$(echo "$line" | awk -F'|' '{print $3}' | xargs)
-    gpt_score_sum=$(echo "$gpt_score_sum + $score" | bc)
-    ((gpt_count++))
-  fi
-done
-if [ $gpt_count -gt 0 ]; then
-  gpt_score_mean=$(echo "scale=4; $gpt_score_sum/$gpt_count" | bc)
-  echo -e "${GREEN}GPT Average Score for Four Datasets: $gpt_score_mean${NC}"
-else
-  echo -e "${RED}GPT average for four datasets cannot be calculated (data missing)${NC}"
-fi
-
 echo ""
 echo -e "${BLUE}All evaluation processes completed.${NC}"

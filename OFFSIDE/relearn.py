@@ -1,4 +1,6 @@
 import json
+import os
+import re
 import torch
 from datasets import Dataset
 from transformers import (
@@ -13,10 +15,11 @@ from peft import LoraConfig, get_peft_model
 from qwen_vl_utils import process_vision_info
 
 MAX_LENGTH = 128
+#Qwen/Qwen2.5-VL-7B-Instruct
 MODEL_NAME = "Qwen/Qwen2.5-VL-3B-Instruct"
-MODEL_PATH = ""
-DATA_PATH = ""
-OUTPUT_DIR = ""
+MODEL_PATH = "/root/autodl-tmp/models/Qwen2.5-VL-7B-Instruct"
+DATA_PATH = "/root/autodl-tmp/OFFSIDE/OFFSIDE/data/relearn_data/relearn_set.json"
+OUTPUT_DIR = "/root/autodl-tmp/output/Qwen2.5-VL-LoRA-vanilla-relearn"
 
 def load_model_and_tokenizer():
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
@@ -40,11 +43,19 @@ def load_data(data_path):
     
     return Dataset.from_json("train_data.json")
 
-def process_func(example, tokenizer, processor):
+def _resolve_image_path(raw_path: str, base_dir: str) -> str:
+    if not raw_path:
+        return raw_path
+    if os.path.isabs(raw_path) or re.match(r"^[a-zA-Z]+://", raw_path):
+        return raw_path
+    return os.path.normpath(os.path.join(base_dir, raw_path))
+
+
+def process_func(example, tokenizer, processor, data_dir: str):
 
     input_content = example["messages"][0]["content"]  
     output_content = example["messages"][1]["content"]  
-    file_path = example["images"]  
+    file_path = _resolve_image_path(example.get("images"), data_dir)
     
     messages = [
         {
@@ -113,9 +124,10 @@ def main():
     model, tokenizer, processor = load_model_and_tokenizer()
     
     train_ds = load_data(DATA_PATH)
+    data_dir = os.path.dirname(os.path.abspath(DATA_PATH))
     
     train_dataset = train_ds.map(
-        lambda example: process_func(example, tokenizer, processor)
+        lambda example: process_func(example, tokenizer, processor, data_dir)
     )
     
     print(f"Train dataset size: {len(train_dataset)}")

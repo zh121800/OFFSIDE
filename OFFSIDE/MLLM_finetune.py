@@ -1,4 +1,6 @@
 import json
+import os
+import re
 import torch
 from datasets import Dataset
 from peft import LoraConfig, get_peft_model
@@ -15,15 +17,31 @@ from transformers import (
 
 MAX_LENGTH = 128
 MODEL_NAME = "Qwen/Qwen2.5-VL-7B-Instruct"
-MODEL_PATH = "/root/autodl-tmp/Qwen2.5-VL-7B-Instruct"
-DATA_PATH = "finetune_set.json"
-OUTPUT_DIR = "/root/autodl-tmp/StarBench/output/Qwen2.5-VL-LoRA-vanilla"
+MODEL_PATH = "/root/autodl-tmp/models/Qwen2.5-VL-7B-Instruct"
+DATA_PATH = "/root/autodl-tmp/OFFSIDE/OFFSIDE/data/complete_unlearning_data/finetune_set.json"
+OUTPUT_DIR = "/root/autodl-tmp/output/Qwen2.5-VL-LoRA-vanilla"
+
+
+def _choose_torch_dtype() -> torch.dtype:
+    """Choose a safe dtype for the current hardware.
+
+    - Ampere+ GPUs (SM >= 80): bf16 is generally supported and stable.
+    - Older GPUs: fall back to fp16 to avoid bf16 kernel incompatibilities.
+    - CPU: use fp32.
+    """
+    if not torch.cuda.is_available():
+        return torch.float32
+
+    major, minor = torch.cuda.get_device_capability(0)
+    sm = major * 10 + minor
+    return torch.bfloat16 if sm >= 80 else torch.float16
 
 
 def load_model_and_tokenizer():
+    torch_dtype = _choose_torch_dtype()
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         MODEL_PATH,
-        torch_dtype=torch.bfloat16,
+        torch_dtype=torch_dtype,
         device_map="auto",
     )
     model.enable_input_require_grads()
@@ -42,10 +60,18 @@ def load_data(data_path):
     
     return Dataset.from_json("train_data.json")
 
-def process_func(example, tokenizer, processor):
+def _resolve_image_path(raw_path: str, base_dir: str) -> str:
+    if not raw_path:
+        return raw_path
+    if os.path.isabs(raw_path) or re.match(r"^[a-zA-Z]+://", raw_path):
+        return raw_path
+    return os.path.normpath(os.path.join(base_dir, raw_path))
+
+
+def process_func(example, tokenizer, processor, data_dir: str):
     input_content = example["messages"][0]["content"] 
     output_content = example["messages"][1]["content"] 
-    file_path = example["images"]  
+    file_path = _resolve_image_path(example.get("images"), data_dir)
     
     messages = [
         {
@@ -98,6 +124,8 @@ def create_peft_config():
     )
 
 def create_training_args():
+    torch_dtype = _choose_torch_dtype()
+    use_cuda = torch.cuda.is_available()
     return TrainingArguments(
         output_dir=OUTPUT_DIR,
         per_device_train_batch_size=4,
@@ -107,6 +135,8 @@ def create_training_args():
         save_steps=500,
         learning_rate=1e-4,
         gradient_checkpointing=True,
+        fp16=use_cuda and torch_dtype == torch.float16,
+        bf16=use_cuda and torch_dtype == torch.bfloat16,
     )
 
 
@@ -114,13 +144,12 @@ def main():
     model, tokenizer, processor = load_model_and_tokenizer()
 
     train_ds = load_data(DATA_PATH)
+    data_dir = os.path.dirname(os.path.abspath(DATA_PATH))
     
     train_dataset = train_ds.map(
-        lambda example: process_func(example, tokenizer, processor)
+        lambda example: process_func(example, tokenizer, processor, data_dir)
     )
-    
-    print(f"Train dataset size: {len(train_dataset)}")
-    print(train_dataset[0])  
+
     
     peft_config = create_peft_config()
     peft_model = get_peft_model(model, peft_config)

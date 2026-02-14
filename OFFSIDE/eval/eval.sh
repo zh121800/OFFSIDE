@@ -1,11 +1,15 @@
 #!/bin/bash
 
 # ===================== Basic Parameters =====================
-MODEL_PATH=""
-IMAGE_DIR="your image dir"
-GEN_OUTPUT_DIR=""
-CLASSI_OUTPUT_DIR=""
-GPT_OUTPUT_DIR=""
+MODEL_PATH="/root/autodl-tmp/models/Qwen2.5-VL-7B-Instruct"
+##Options:
+#Complete unlearning: /OFFSIDE/data/complete_unlearning_data
+#Pure_text unlearning: /OFFSIDE/data/pure_text_data
+#selective unlearning: /OFFSIDE/data/selective_unlearning_data
+IMAGE_DIR="/root/autodl-tmp/OFFSIDE/OFFSIDE/data/complete_unlearning_data"
+GEN_OUTPUT_DIR="./output_gen"
+CLASSI_OUTPUT_DIR="./output_classi"
+GPT_OUTPUT_DIR="./output_classi"
 MAX_NEW_TOKENS=32
 
 # Parallel Parameters
@@ -60,7 +64,7 @@ for dataset in "${GEN_DATASETS[@]}"; do
     continue
   fi
   echo -e "${GREEN}Evaluating Generation dataset: $dataset_name${NC}"
-  python /root/autodl-tmp/StarBench/eval_generation.py \
+  python eval_generation.py \
     --model_path "$MODEL_PATH" \
     --data_path "$data_path" \
     --image_dir "$IMAGE_DIR" \
@@ -71,22 +75,27 @@ for dataset in "${GEN_DATASETS[@]}"; do
 done
 
 echo -e "${BLUE}========== 2. Classification Evaluation ==========${NC}"
+
 for dataset in "${CLASSI_DATASETS[@]}"; do
-  DATASET_BASENAME=$(basename "$dataset" .json)
-  OUTPUT_DIR="${CLASSI_OUTPUT_DIR}/${DATASET_BASENAME}"
-  mkdir -p "$OUTPUT_DIR"
-  if [ ! -f "$dataset" ]; then
-    echo -e "${RED}Classification dataset does not exist: $dataset${NC}"
-    continue
-  fi
-  echo -e "${GREEN}Evaluating Classification dataset: $DATASET_BASENAME${NC}"
-  python /root/autodl-tmp/StarBench/eval_classi.py \
-    --data_path="$dataset" \
-    --model_path="$MODEL_PATH" \
-    --output_dir="$OUTPUT_DIR" \
-    --image_dir="$IMAGE_DIR" \
-    --num_workers="$CLASSI_WORKERS" \
-    --batch_size="$CLASSI_BATCH_SIZE"
+    dataset_name=$(basename "$dataset" .json)
+    output_dir="$CLASSI_OUTPUT_DIR/$dataset_name"
+    mkdir -p "$output_dir"
+
+    data_path="$IMAGE_DIR/$dataset"
+    if [ ! -f "$data_path" ]; then
+        echo -e "${RED}Classification dataset does not exist: $data_path${NC}"
+        continue
+    fi
+
+    echo -e "${GREEN}Evaluating Classification dataset: $dataset_name${NC}"
+
+    python eval_classi.py \
+        --model_path "$MODEL_PATH" \
+        --data_path "$data_path" \
+        --image_dir "$IMAGE_DIR" \
+        --output_dir "$output_dir" \
+        --num_workers "$CLASSI_WORKERS" \
+        --batch_size "$CLASSI_BATCH_SIZE"
 done
 
 echo -e "${BLUE}========== 3. GPT Evaluation ==========${NC}"
@@ -100,7 +109,7 @@ for dataset in "${GPT_DATASETS[@]}"; do
     continue
   fi
   echo -e "${GREEN}Evaluating GPT dataset: $dataset_name${NC}"
-  python /root/autodl-tmp/StarBench/eval_gpt.py \
+  python eval_gpt.py \
     --model_path "$MODEL_PATH" \
     --data_path "$data_path" \
     --output_dir "$output_dir" \

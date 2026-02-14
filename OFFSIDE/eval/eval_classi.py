@@ -16,15 +16,16 @@ def parse_args():
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-VL-7B-Instruct",
                         help="Model name")
     parser.add_argument("--model_path", type=str, 
-                        default="/root/autodl-tmp/StarBench/Qwen2.5-VL-LoRA-Vanilla-merged-2000-GA",
+                        default="",
                         help="Model path")
     parser.add_argument("--data_path", type=str, 
-                        default="/root/autodl-tmp/StarBench/classification_forget_set.json",
+                        default="/root/autodl-tmp/OFFSIDE/OFFSIDE/classification_forget_set.json",
                         help="Dataset path")
-    parser.add_argument("--image_dir", type=str, default="/root/autodl-tmp/StarBench",
-                        help="Image directory")
+    # If not provided, image paths are resolved relative to the dataset JSON file.
+    parser.add_argument("--image_dir", type=str, default=None,
+                        help="Optional base directory for images (overrides JSON-relative paths)")
     parser.add_argument("--output_dir", type=str, 
-                        default="/root/autodl-tmp/StarBench/classification_evaluation_results",
+                        default="",
                         help="Output directory")
     parser.add_argument("--max_new_tokens", type=int, default=32,
                         help="Maximum number of tokens to generate")
@@ -138,17 +139,31 @@ def extract_answer(response):
     return None
 
 def process_example(args):
-    i, example, model, processor, image_dir, max_new_tokens = args
+    i, example, model, processor, image_dir, max_new_tokens, data_dir = args
     
     try:
         question = example["Question"]
         options = example["Options"]
         correct_answer = example["Correct_Answer"]
         
-        image_path = os.path.join(image_dir, example['images'])
+        raw_image = example.get('images') or example.get('image')
+        if not raw_image:
+            return {
+                'example_id': i,
+                'error': "Missing image path in example",
+                'status': 'skipped'
+            }
+
+        # Absolute paths and URLs are passed through.
+        if os.path.isabs(raw_image) or re.match(r"^[a-zA-Z]+://", raw_image):
+            image_path = raw_image
+        else:
+            base_dir = image_dir if image_dir else data_dir
+            image_path = os.path.normpath(os.path.join(base_dir, raw_image))
         
         if not os.path.exists(image_path):
-            alt_path = os.path.join(image_dir, os.path.basename(example['images']))
+            base_dir = image_dir if image_dir else data_dir
+            alt_path = os.path.join(base_dir, os.path.basename(raw_image))
             if os.path.exists(alt_path):
                 image_path = alt_path
             else:
@@ -174,7 +189,7 @@ def process_example(args):
                 'predicted_answer': predicted_answer,
                 'full_prediction': prediction_raw,
                 'is_correct': is_correct,
-                'image_path': example['images'],
+                'image_path': raw_image,
                 'status': 'success'
             }
         else:
@@ -216,6 +231,8 @@ def main():
     print(f"Loading dataset from: {args.data_path}")
     with open(args.data_path, 'r', encoding='utf-8') as f:
         dataset = json.load(f)
+
+    data_dir = os.path.dirname(os.path.abspath(args.data_path))
     
     total_examples = len(dataset)
     print(f"Dataset loaded with {total_examples} examples")
@@ -236,7 +253,7 @@ def main():
         current_batch_size = end_idx - start_idx
         
         batch_args = [
-            (i, dataset[i], model, processor, args.image_dir, args.max_new_tokens) 
+            (i, dataset[i], model, processor, args.image_dir, args.max_new_tokens, data_dir)
             for i in range(start_idx, end_idx)
         ]
         
